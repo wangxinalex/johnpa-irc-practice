@@ -109,6 +109,25 @@ int findClientIndexBySockFD(Arraylist list, int sockfd){
   }
   return -1;
 }
+int findClientIndexByNick(Arraylist clientList, char *nick){
+    int i;
+    for (i = 0; i < arraylist_size(clientList); i++){
+        if (strcmp(CLIENT_GET(clientList,i)->nick,nick) == 0){
+            return i;
+        }
+    }
+    return -1;
+}
+int findChannelIndexByChanname(Arraylist channelList, char *channame){
+    int i;
+    for (i = 0; i < arraylist_size(channelList); i++){
+        if (strcmp(CHANNEL_GET(channelList,i)->name,channame) == 0){
+            return i;
+        }
+    }
+    return -1;
+
+}
 
 static const Boolean strComparatorForArraylist(const Object obj1, const Object obj2){
   return (0 == strcmp((char *)obj1, (char *)obj2) ) ? TRUE : FALSE;
@@ -171,7 +190,7 @@ client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr){
   memcpy(&newClient->cliaddr, remoteaddr, sizeof(struct sockaddr_storage));
   newClient->inbuf_size = 0;
   newClient->registered = FALSE;
-  newClient->outbuf = arraylist_create(strComparatorForArraylist);
+  newClient->outbuf = arraylist_create();
   newClient->outbuf_offset = 0;
   INIT_STRING(newClient->hostname);
   strcpy(newClient->servername,servername);
@@ -179,7 +198,7 @@ client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr){
   INIT_STRING(newClient->user);
   INIT_STRING(newClient->realname);
   INIT_STRING(newClient->inbuf);
-  newClient->chanlist = arraylist_create(channelComparator);
+  newClient->chanlist = arraylist_create();
   if (  (index = getnameinfo((struct sockaddr *)&newClient->cliaddr,sizeof(struct sockaddr_storage),newClient->hostname,MAX_HOSTNAME,NULL,0,0)) < 0){
     DPRINTF(DEBUG_SOCKETS,"getnameinfo: %s and hostname: %s\n",gai_strerror(index),newClient->hostname);
   }
@@ -188,7 +207,7 @@ client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr){
 
 }
 
-channel_t *channel_alloc_init(client_t *creator, char *channame){
+channel_t *channel_alloc_init(char *channame){
     channel_t *newChannel;
     newChannel = malloc(sizeof(channel_t));
     if (!newChannel){
@@ -196,7 +215,7 @@ channel_t *channel_alloc_init(client_t *creator, char *channame){
         return NULL;
     }
     strncpy(newChannel->name,channame,MAX_CHANNAME);
-    newChannel->userlist = arraylist_create(clientComparator);
+    newChannel->userlist = arraylist_create();
     INIT_STRING(newChannel->topic);
     INIT_STRING(newChannel->key);
     return newChannel;

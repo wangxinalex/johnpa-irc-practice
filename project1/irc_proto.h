@@ -4,7 +4,7 @@
 
 #include "arraylist.h"
 
-void handle_line(Arraylist clientList, int srcIndex, char *servername, char *line);
+void handle_line(Arraylist clientList, int srcIndex, Arraylist channelList, char *servername, char *line);
 
 
 

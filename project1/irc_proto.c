@@ -21,7 +21,8 @@
 * or however you set it up.
 */
 
-#define CMD_ARGS Arraylist clientList, int srcIndex, char *servername, char *prefix, char **params, int n_params
+#define CMD_ARGS Arraylist clientList, int srcIndex, Arraylist channelList, char *servername, char *prefix, char **params, int n_params
+
 typedef void (*cmd_handler_t)(CMD_ARGS);
 #define COMMAND(cmd_name) void cmd_name(CMD_ARGS)
 
@@ -87,7 +88,7 @@ void handle_line_temp(Arraylist clientList, int srcIndex, char *servername, char
   client_t *client = arraylist_get(clientList, srcIndex);
   arraylist_add(client->outbuf,copy);
 }
-void handle_line(Arraylist clientList, int srcIndex, char *servername, char *line)
+void handle_line(Arraylist clientList, int srcIndex, Arraylist channelList, char *servername, char *line)
 {
   char *prefix = NULL, *command, *pstart, *params[MAX_MSG_TOKENS];
   int n_params = 0;
@@ -175,7 +176,7 @@ void handle_line(Arraylist clientList, int srcIndex, char *servername, char *lin
         sendNumericReply(sender, servername, ERR_NEEDMOREPARAMS, params, 2);
         return;
       } else {
-        (*cmds[i].handler)(clientList, srcIndex, servername, prefix, params, n_params);
+        (*cmds[i].handler)(clientList, srcIndex, channelList, servername, prefix, params, n_params);
       }
       break;
     }
@@ -292,9 +293,62 @@ void cmd_quit(CMD_ARGS)
 
 void cmd_join(CMD_ARGS)
 {
-  int i;
+  int i=0;
   client_t *sender = CLIENT_GET(clientList,srcIndex);
-  
+  int numTokens;
+  char *lastStr;
+  char **tokens = splitByDelimStr(params[0],",",&numTokens,&lastStr);
+  char *messageArgs[MAX_MSG_TOKENS];
+
+  /* only one channel allowed for now */
+  /*for (i = 0; i < numTokens; i++){*/
+    int chanIndex = findChannelIndexByChanname(channelList,tokens[i]);
+
+    /* check if the user is already in that channel */
+    if (arraylist_index_of(sender->chanlist,CHANNEL_GET(channelList,chanIndex)) >= 0){
+        freeTokens(&tokens,numTokens);
+        return;
+        /* continue; // if more than one channel allowed */
+    }
+
+    if (chanIndex == -1){
+      /* no existing channel with that name */
+      /* verify validity of channame */
+      if (!isValidChanname(tokens[i])){
+        messageArgs[0] = tokens[i];
+        messageArgs[1] = "No such channel";
+        sendNumericReply(sender, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
+        return;
+      }
+      /* create channel */
+      channel_t *newChannel = channel_alloc_init(tokens[i]);
+      if (newChannel){
+        chanIndex = arraylist_add(channelList,newChannel);
+      }
+
+      if (!newChannel || chanIndex < 0){
+        messageArgs[0] = tokens[i];
+        messageArgs[1] = "Cannot join channel (+l)";
+        sendNumericReply(sender, servername, ERR_TOOMANYCHANNELS, messageArgs, 2);
+        return;
+      }
+
+    }
+
+    /* add user to channel */
+    arraylist_add(CHANNEL_GET(channelList,chanIndex)->userlist,sender);
+
+    if (arraylist_size(sender->chanlist) != 0){
+        /* remove user from previous channel */
+        /* only applies one channel allowed condition */
+
+    }
+
+
+ /* }*/
+
+
+  freeTokens(&tokens,numTokens);
 }
 void cmd_part(CMD_ARGS)
 {

@@ -18,41 +18,41 @@
 * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 * Boston, MA 02111-1307, USA.
 */
- 
+
 #ifndef __defined_arraylist_h
 #define __defined_arraylist_h
- 
+
 #include <stdlib.h>
 #include <stdio.h>
- 
+
 
 /*
   constants
 */
 #undef TRUE
 #define TRUE 1
- 
+
 #undef FALSE
 #define FALSE 0
- 
- 
+
+
 /*
   type definitions
 */
 #undef Boolean
 #define Boolean short unsigned int
- 
+
 #undef Object
 #define Object void*
- 
+
 typedef struct Arraylist_Struct *Arraylist;
- 
- 
+
+
 /*
   function declarations
 */
 void arraylist_free(const Arraylist list);
-Arraylist arraylist_create(const Boolean (*equals)(const Object object_1, const Object object_2));
+Arraylist arraylist_create();//const Boolean (*equals)(const Object object_1, const Object object_2));
 int arraylist_add(const Arraylist list, Object object);
 Object arraylist_remove(const Arraylist list, const Object object);
 Object arraylist_removeIndex(const Arraylist list, const int index);
@@ -63,6 +63,6 @@ int arraylist_size(const Arraylist list);
 Object arraylist_get(const Arraylist list, const int index);
 void arraylist_clear(const Arraylist list);
 void arraylist_sort(const Arraylist list, const int (*compare)(const Object object_1, const Object object_2));
- 
- 
+
+
 #endif /* __defined_arraylist_h */

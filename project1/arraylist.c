@@ -38,7 +38,7 @@ struct Arraylist_Struct {
     int _current_capacity;
     Object *_data;
     int _size;
-    const Boolean (*_equals)();
+    //const Boolean (*_equals)();
 };
 
 void arraylist_free(const Arraylist list)
@@ -47,7 +47,7 @@ void arraylist_free(const Arraylist list)
     free(list);
 }
 
-Arraylist arraylist_create(const Boolean (*equals)(const Object object_1, const Object object_2))
+Arraylist arraylist_create()//const Boolean (*equals)(const Object object_1, const Object object_2))
 {
     Arraylist list;
     list = malloc(sizeof(struct Arraylist_Struct));
@@ -60,7 +60,8 @@ Arraylist arraylist_create(const Boolean (*equals)(const Object object_1, const 
          return NULL;
     }
     list->_size = 0;
-    list->_equals = equals;
+    //list->_equals = equals;
+
 
     return list;
 }
@@ -93,7 +94,7 @@ Object arraylist_remove(const Arraylist list, const Object object)
 {
     int index = arraylist_index_of(list, object);
     return arraylist_removeIndex(list,index);
-    
+
     /*
     int length = arraylist_size(list);
     int last_index = length - 1;
@@ -127,13 +128,13 @@ Object arraylist_removeIndex(const Arraylist list, const int index){
   int last_index = length - 1;
   int new_size, new_capacity;
   Object toRemove = NULL;
-  
+
   if (index < 0 || index > arraylist_size(list))
     return NULL;
-  
+
   (list->_size)--;
   toRemove = list->_data + index;
-  
+
   if (index < last_index)
   {
     memmove(list->_data + index, list->_data + index + 1, object_size * (last_index - index));
@@ -145,7 +146,7 @@ Object arraylist_removeIndex(const Arraylist list, const int index){
       list->_current_capacity = new_capacity;
     }
   }
-  
+
   return toRemove;
 }
 Boolean arraylist_contains(const Arraylist list, const Object object)

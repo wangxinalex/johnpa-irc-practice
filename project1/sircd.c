@@ -140,6 +140,8 @@ int main( int argc, char *argv[] )
 
   /* client arr */
   Arraylist clientList;
+  /* channel arr */
+  Arraylist channelList;
 
   /* servername */
   char servername[MAX_SERVERNAME+1];
@@ -181,7 +183,11 @@ int main( int argc, char *argv[] )
   }
 
   /* initialize client array */
-  clientList = arraylist_create(clientEquals);
+  clientList = arraylist_create();
+
+  /* initialize channel array */
+  channelList = arraylist_create();
+
   /* prepare for select */
   fdmax = listenfd;
   FD_ZERO(&master_set);
@@ -225,7 +231,7 @@ int main( int argc, char *argv[] )
               /* connection lost or closed by the peer */
 
               DPRINTF(DEBUG_SOCKETS,"send: client %d hungup\n",i);
-              handle_line(clientList,listIndex,servername,"QUIT :Connection closed");
+              handle_line(clientList,listIndex,channelList,servername,"QUIT :Connection closed");
               continue;
             }
           }
@@ -281,11 +287,11 @@ int main( int argc, char *argv[] )
           if (nbytes <= 0){
             if (nbytes == 0){
               DPRINTF(DEBUG_SOCKETS,"recv: client %d hungup\n",i);
-              handle_line(clientList,listIndex,servername,"QUIT :Connection closed");
+              handle_line(clientList,listIndex,channelList,servername,"QUIT :Connection closed");
             }
             else if (errno == ECONNRESET || errno == EPIPE){
               DPRINTF(DEBUG_SOCKETS,"recv: client %d connection reset \n",i);
-              handle_line(clientList,listIndex,servername,"QUIT :Connection closed");
+              handle_line(clientList,listIndex,channelList,servername,"QUIT :Connection closed");
             }
             else{
               perror("recv");
@@ -318,7 +324,7 @@ int main( int argc, char *argv[] )
           }
 
           for (j=0;j<numTokens;j++){
-            handle_line(clientList,listIndex,servername,tokenArr[j]);
+            handle_line(clientList,listIndex,channelList,servername,tokenArr[j]);
           }
 
           if (arraylist_size(CLIENT_GET(clientList,listIndex)->outbuf) > 0){

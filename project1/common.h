@@ -34,6 +34,7 @@ typedef enum {
     ERR_INVALID = 1,
     ERR_NOSUCHNICK = 401,
     ERR_NOSUCHCHANNEL = 403,
+    ERR_TOOMANYCHANNELS = 405,
     ERR_NORECIPIENT = 411,
     ERR_NOTEXTTOSEND = 412,
     ERR_UNKNOWNCOMMAND = 421,
@@ -118,7 +119,8 @@ int findChannelIndexByChanname(Arraylist chanList, char *channame);
 int addClientToList(Arraylist list, char *servername, int sockfd, void *remoteaddr);
 
 client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr);
-channel_t *channel_alloc_init(client_t *creator,char *channame);
+channel_t *channel_alloc_init(char *channame);
+
 
 void remove_client(Arraylist clientList, int srcIndex);
 

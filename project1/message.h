@@ -19,6 +19,9 @@ int sendNumericReply(client_t *receiver, char *servername, int replyCode, char *
 int sendMOTD(client_t *receiver, char *servername);
 /* isValidNick: returns TRUE if valid, FALSE if not valid */
 Boolean isValidNick(char *nick);
+
+Boolean isValidChanname(char *channame);
+
 /* sendChannelBroadcast: send message to Channel.
  *                       sendereceive parameter specifies whether sender should receive the message too */
 int sendChannelBroadcast(client_t *sender, channel_t *channame, Boolean senderreceive, char *message);

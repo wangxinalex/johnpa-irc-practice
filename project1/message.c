@@ -101,6 +101,24 @@ Boolean isValidNick(char *nick){
   return TRUE;
 }
 
+Boolean isValidChanname(char *channame){
+    int i;
+    if (channame[0] != '#' && channame[0] != '&'){
+        return FALSE;
+    }
+
+    if (strlen(channame) > MAX_CHANNAME)
+        return FALSE;
+
+    for (int i; i < strlen(channame) ; i++){
+        /* parser will prevent SPACE, NUL, CR, LF, and comma. Thus check for bell only */
+        if (channame[0] == 0x7 )
+            return FALSE;
+
+    }
+    return TRUE;
+}
+
 int sendChannelBroadcast(client_t *sender, channel_t *channel, Boolean senderreceive, char *message){
   int i;
   for (i = 0; i < arraylist_size(channel->userlist); i++){
