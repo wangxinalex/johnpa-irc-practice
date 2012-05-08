@@ -299,6 +299,7 @@ void cmd_join(CMD_ARGS)
   char *lastStr;
   char **tokens = splitByDelimStr(params[0],",",&numTokens,&lastStr);
   char *messageArgs[MAX_MSG_TOKENS];
+  char buf[MAX_CONTENT_LENGTH+1];
 
   /* only one channel allowed for now */
   /*for (i = 0; i < numTokens; i++){*/
@@ -336,13 +337,40 @@ void cmd_join(CMD_ARGS)
     }
 
     /* add user to channel */
-    arraylist_add(CHANNEL_GET(channelList,chanIndex)->userlist,sender);
+    channel_t *channel = CHANNEL_GET(channelList,chanIndex);
+    arraylist_add(channel->userlist,sender);
 
     if (arraylist_size(sender->chanlist) != 0){
         /* remove user from previous channel */
         /* only applies one channel allowed condition */
 
+        snprintf(buf,sizeof buf,":%s!%s@%s QUIT %s",sender->nick,sender->user,sender->servername,"Bye Bye");
+        sendChannelBroadcast(sender, CHANNEL_GET(sender->chanlist,0) , FALSE, buf);
+        arraylist_remove(CHANNEL_GET(sender->chanlist,0)->userlist, sender);
+        arraylist_removeIndex(sender->chanlist,0);
     }
+    arraylist_add(sender->chanlist,channel);
+
+    strcpy(buf,CLIENT_GET(channel->userlist,0)->nick); /* guaranteed to have at least one user */
+    char *temp = buf + strlen(buf);
+    for (i = 1; i < arraylist_size(channel->userlist ); i++){
+        size_t nWritten = snprintf(buf,sizeof buf - (temp - buf), " %s",CLIENT_GET(channel->userlist,i)->nick);
+        temp += nWritten;
+        if (temp >= buf + sizeof buf ){
+            buf[sizeof buf - 1] = '\0';
+            break;
+        }
+    }
+    messageArgs[0] = channel->name;
+    messageArgs[1] = buf;
+    sendNumericReply(sender, servername, RPL_NAMREPLY, messageArgs,2);
+    messageArgs[1] = "End of /NAMES list";
+    sendNumericReply(sender, servername, RPL_ENDOFNAMES, messageArgs, 2);
+
+    snprintf(buf,sizeof buf, ":%s JOIN %s",sender->nick,tokens[0]);
+    sendChannelBroadcast(sender,CHANNEL_GET(channelList,chanIndex), TRUE, buf);
+
+
 
 
  /* }*/
