@@ -7,14 +7,19 @@
 
 /* prepareMessage: adds deep copy of null terminated message + "\r\n" onto receiver's out queue */
 int prepareMessage(client_t *receiver, char *message){
-  char *toSend = malloc (sizeof(char) * (strlen(message)+2 + 1) );
+  char *toSend = malloc (sizeof(char) * (MAX_MSG_LEN + 1) );
 
   if (!toSend){
     DPRINTF(DEBUG_ERRS,"Failed to create copy of the message to client %d\n",receiver->sock);
     return -1;
   }
-
-  sprintf(toSend,"%s\r\n",message);
+  /* size to copy */
+  size_t len = max(MAX_MSG_LEN-2,strlen(message));
+  memcpy(toSend,message,len);
+  /*decorate ending myself. snprintf might just truncate necessary ending*/
+  toSend[len] = '\r';
+  toSend[len+1] = '\n';
+  toSend[len+2] = '\0';
 
   if (arraylist_add(receiver->outbuf,toSend) < 0){
     DPRINTF(DEBUG_ERRS,"Failed to add a message onto outbuf of client %d\n",receiver->sock);
@@ -25,22 +30,23 @@ int prepareMessage(client_t *receiver, char *message){
 }
 /* sendNumericReply: creates message with numeric reply code and add it onto receiver's out queue */
 int sendNumericReply(client_t *receiver, char *servername, int replyCode, char **texts, int n_texts){
-  char buf[MAX_CONTENT_LENGTH + 2]; /* large enough to hold message */
+  char buf[MAX_CONTENT_LENGTH + 1]; /* large enough to hold message */
   int i;
   int numWritten;
 
   numWritten = snprintf(buf,sizeof buf, ":%s %d", servername, replyCode);
-  if (numWritten > MAX_CONTENT_LENGTH){
-    return -1; /* not enought to fit even necessary part */
+  if (numWritten == sizeof buf){
+    DPRINTF(DEBUG_COMMANDS, "sendNumericReply: Message Too Long and we couldn't trucate necessary part\n");
+    return -1; /* not enough to fit even necessary part. This won't happen unless servername is humongously long */
   }
 
   for (i = 0; i < n_texts - 1; i++){
     numWritten += snprintf(buf + numWritten, sizeof buf  - numWritten, " %s", texts[i]);
 
-    if ( numWritten > MAX_CONTENT_LENGTH){
+    if ( numWritten == sizeof buf){
       DPRINTF(DEBUG_ERRS, "sendNumericReply: Message Too Long. Truncating message %d for client %d\n", replyCode, receiver->sock);
       /* just send it. This is okey since errorcode should have been in the queue already. */
-      buf[MAX_CONTENT_LENGTH] = '\0';
+      buf[sizeof buf - 1] = '\0';
       return prepareMessage(receiver,buf);
     }
   }
@@ -51,10 +57,10 @@ int sendNumericReply(client_t *receiver, char *servername, int replyCode, char *
   else{
     numWritten += snprintf(buf + numWritten, sizeof buf - numWritten, " %s", texts[i]);
   }
-  if ( numWritten > MAX_CONTENT_LENGTH){
+  if ( numWritten == sizeof buf ){
     DPRINTF(DEBUG_ERRS, "sendNumericReply: Message Too Long. Truncating message %d for client %d\n", replyCode, receiver->sock);
     /* just send it. This is okey since errorcode should have been in the queue already. */
-    buf[MAX_CONTENT_LENGTH] = '\0';
+    buf[sizeof buf - 1] = '\0';
     return prepareMessage(receiver,buf);
   }
   DPRINTF(DEBUG_COMMANDS,"sendNumericReply: ready to send message '%s' to client %d\n", buf, receiver->sock);
@@ -110,7 +116,8 @@ Boolean isValidChanname(char *channame){
     if (strlen(channame) > MAX_CHANNAME)
         return FALSE;
 
-    for (int i; i < strlen(channame) ; i++){
+    for (i=0; i < strlen(channame) ; i++){
+
         /* parser will prevent SPACE, NUL, CR, LF, and comma. Thus check for bell only */
         if (channame[0] == 0x7 )
             return FALSE;

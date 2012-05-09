@@ -377,10 +377,62 @@ void cmd_join(CMD_ARGS)
 
 
   freeTokens(&tokens,numTokens);
+
 }
+
+void part_client(client_t *client,char *servername, char *channame, Arraylist chanList){
+    char *messageArgs[MAX_MSG_TOKENS];
+    int chanIndex = findChannelIndexByChanname(chanList, channame);
+    char buf[MAX_CONTENT_LENGTH+1];
+    channel_t *theChannel;
+    /* see if channel exists */
+    if ( chanIndex == -1){
+        /*send ERR_NOSUCHCHANNEL */
+        messageArgs[0] = channame;
+        messageArgs[1] = "No such channel";
+
+        sendNumericReply(client, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
+        return;
+    }
+    theChannel = CHANNEL_GET(chanList,chanIndex);
+
+    /* see if user is part of that channel */
+    if ( arraylist_index_of(theChannel->userlist,client) == -1){
+        /*send ERR_NONONCHANNEL*/
+        messageArgs[0] = channame;
+        messageArgs[1] = "You're not on that channel";
+
+        sendNumericReply(client, servername, ERR_NOTONCHANNEL, messageArgs, 2);
+    }
+
+    /* echo QUIT message to users */
+    snprintf(buf,sizeof buf,":%s!%s@%s QUIT %s",client->nick,client->user,client->servername,"Bye Bye");
+    buf[sizeof buf - 1] = '\0';
+    sendChannelBroadcast(client, theChannel , TRUE, buf);
+
+
+    /* remove user from channel */
+    arraylist_remove(theChannel->userlist,client);
+    arraylist_remove(client->chanlist,theChannel);
+
+    /* remove channel from chanList if no one in channel */
+    if (arraylist_size(theChannel->userlist) == 0){
+        arraylist_free(theChannel->userlist);
+        arraylist_remove(chanList, theChannel);
+        free(theChannel);
+    }
+}
+
+
+
 void cmd_part(CMD_ARGS)
 {
+
+
 }
+
+
+
 void cmd_list(CMD_ARGS)
 {
 }

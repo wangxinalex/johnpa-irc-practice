@@ -245,4 +245,3 @@ void remove_client(Arraylist clientList, int srcIndex){
     free(client);
 }
 
-

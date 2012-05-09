@@ -15,6 +15,9 @@
 #undef FALSE
 #define FALSE 0
 
+static inline int max(int a, int b){
+    return (a > b) ? a : b;
+}
 
 #define MAX_CLIENTS 512
 #define MAX_MSG_TOKENS 10
