@@ -63,6 +63,6 @@ int arraylist_size(const Arraylist list);
 Object arraylist_get(const Arraylist list, const int index);
 void arraylist_clear(const Arraylist list);
 void arraylist_sort(const Arraylist list, const int (*compare)(const Object object_1, const Object object_2));
-
+Boolean arraylist_has_intersection(const Arraylist list1, const Arraylist list2);
 
 #endif /* __defined_arraylist_h */

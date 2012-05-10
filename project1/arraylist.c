@@ -200,3 +200,15 @@ void arraylist_sort(const Arraylist list, const int (*compare)(const Object obje
             sizeof(Object),
             (int (*)())compare);
 }
+/* returns TRUE iff there is more than one common entry among two given lists */
+Boolean arraylist_has_intersection(const Arraylist list1, const Arraylist list2){
+    int i;
+
+    for (i = 0; i < arraylist_size(list1); i++){
+        if ( arraylist_index_of(list2, arraylist_get(list1, i)) != -1){
+            return TRUE;
+        }
+    }
+    return FALSE;
+
+}

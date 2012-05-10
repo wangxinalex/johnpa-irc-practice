@@ -47,7 +47,14 @@ COMMAND(cmd_part);
 COMMAND(cmd_list);
 COMMAND(cmd_privmsg);
 COMMAND(cmd_who);
-/* Fill in the blanks */
+
+/* helper functions */
+void part_client(client_t *sender,char *servername, char *channame, Arraylist chanList);
+void part_client_given_channel(client_t * client, char *servername, channel_t *theChannel, Arraylist chanList);
+
+
+
+
 
 /* Dispatch table.  "reg" means "user must be registered in order
 * to call this function".  "#param" is the # of parameters that
@@ -85,8 +92,8 @@ void handle_line_temp(Arraylist clientList, int srcIndex, char *servername, char
   memcpy(copy,line,lineLen);
   strcpy(copy+lineLen,"\r\n");
 
-  client_t *client = arraylist_get(clientList, srcIndex);
-  arraylist_add(client->outbuf,copy);
+  client_t *sender = arraylist_get(clientList, srcIndex);
+  arraylist_add(sender->outbuf,copy);
 }
 void handle_line(Arraylist clientList, int srcIndex, Arraylist channelList, char *servername, char *line)
 {
@@ -196,9 +203,11 @@ void handle_line(Arraylist clientList, int srcIndex, Arraylist channelList, char
 /* MODIFY to take the arguments you specified above! */
 void cmd_nick(CMD_ARGS)
 {
-  int i;
+  int i,j;
   client_t *sender = CLIENT_GET(clientList,srcIndex);
   char *messageArgs[MAX_MSG_TOKENS];
+  char *newNick = params[0]; /* an alias for code readability */
+
 
   /* ERR_NONICKNAMEGIVEN */
   if (n_params == 0){
@@ -208,8 +217,8 @@ void cmd_nick(CMD_ARGS)
   }
 
   /* check validity of specified nick */
-  if (!isValidNick(params[0])){
-    messageArgs[0] = params[0];
+  if (!isValidNick(newNick)){
+    messageArgs[0] = newNick;
     messageArgs[1] = "Erroneus nickname";
     sendNumericReply(sender, servername, ERR_ERRONEOUSNICKNAME, messageArgs, 2);
     return;
@@ -219,8 +228,8 @@ void cmd_nick(CMD_ARGS)
   int numClient = arraylist_size(clientList);
   for (i=0;i<numClient;i++){
     client_t *other = CLIENT_GET(clientList,i);
-    if (strcasecmp(params[0],other->nick)){
-      messageArgs[0] = params[0];
+    if (strcasecmp(newNick,other->nick)){
+      messageArgs[0] = newNick;
       messageArgs[1] = "Nickname is already in use";
       sendNumericReply(sender, servername, ERR_NICKNAMEINUSE, messageArgs, 2);
       return;
@@ -230,18 +239,20 @@ void cmd_nick(CMD_ARGS)
 
   /* registered and in a channel. i.e. Nick change situation*/
   if (sender->registered && (arraylist_size(sender->chanlist) != 0)){
-    char buf[MAX_CONTENT_LENGTH+2];
-    if ( snprintf(buf,sizeof buf,":%s!%s@%s NICK %s",sender->nick,sender->user,sender->servername,params[0]) > MAX_CONTENT_LENGTH){
-      DPRINTF(DEBUG_ERRS, "cmd_nick: nick change broadcast message too large\n");
-      return;
-    }
+
     for (i=0;i<arraylist_size(sender->chanlist);i++){
-      sendChannelBroadcast(sender, CHANNEL_GET(sender->chanlist,i) , FALSE, buf);
+        channel_t *thisChannel = CHANNEL_GET(sender->chanlist,i);
+        for (j = 0; j < arraylist_size(thisChannel->userlist); j++){
+            client_t *receiver = CLIENT_GET(thisChannel->userlist,j);
+            if (receiver != sender){
+                 sendNICK(receiver, sender, sender->nick, newNick);
+            }
+        }
     }
   }
 
   /* add nick */
-  strcpy(sender->nick,params[0]);
+  strcpy(sender->nick,newNick);
 
   /* now registered case */
   if ((sender->registered == FALSE) && (strlen(sender->user) != 0)){
@@ -276,16 +287,21 @@ void cmd_user(CMD_ARGS)
 
 void cmd_quit(CMD_ARGS)
 {
-  int i;
+  int i,j;
   client_t *sender = CLIENT_GET(clientList,srcIndex);
+  char *message = ( n_params > 0) ? params[0] : "Bye Bye";
 
   DPRINTF(DEBUG_CLIENTS,"client %d entered cmd_quit\n",sender->sock);
 
   if (sender->registered && arraylist_size(sender->chanlist) != 0){
-    char buf[MAX_CONTENT_LENGTH+1];
-    snprintf(buf,sizeof buf,":%s!%s@%s QUIT %s",sender->nick,sender->user,sender->servername,params[0]);
     for (i=0;i<arraylist_size(sender->chanlist);i++){
-      sendChannelBroadcast(sender, CHANNEL_GET(sender->chanlist,i) , FALSE, buf);
+        channel_t *thisChannel = CHANNEL_GET(sender->chanlist,i);
+        for (j=0; j<arraylist_size(thisChannel->userlist); j++){
+            client_t *receiver = CLIENT_GET(thisChannel->userlist,j);
+            if (receiver != sender){
+                sendQUIT(receiver,sender,message);
+            }
+        }
     }
   }
   remove_client(clientList,srcIndex);
@@ -344,17 +360,14 @@ void cmd_join(CMD_ARGS)
         /* remove user from previous channel */
         /* only applies one channel allowed condition */
 
-        snprintf(buf,sizeof buf,":%s!%s@%s QUIT %s",sender->nick,sender->user,sender->servername,"Bye Bye");
-        sendChannelBroadcast(sender, CHANNEL_GET(sender->chanlist,0) , FALSE, buf);
-        arraylist_remove(CHANNEL_GET(sender->chanlist,0)->userlist, sender);
-        arraylist_removeIndex(sender->chanlist,0);
+        part_client_given_channel(sender,servername,CHANNEL_GET(sender->chanlist,0),channelList);
     }
     arraylist_add(sender->chanlist,channel);
 
     strcpy(buf,CLIENT_GET(channel->userlist,0)->nick); /* guaranteed to have at least one user */
     char *temp = buf + strlen(buf);
     for (i = 1; i < arraylist_size(channel->userlist ); i++){
-        size_t nWritten = snprintf(buf,sizeof buf - (temp - buf), " %s",CLIENT_GET(channel->userlist,i)->nick);
+        size_t nWritten = snprintf(temp,sizeof buf - (temp - buf), " %s",CLIENT_GET(channel->userlist,i)->nick);
         temp += nWritten;
         if (temp >= buf + sizeof buf ){
             buf[sizeof buf - 1] = '\0';
@@ -380,10 +393,9 @@ void cmd_join(CMD_ARGS)
 
 }
 
-void part_client(client_t *client,char *servername, char *channame, Arraylist chanList){
+void part_client(client_t *sender,char *servername, char *channame, Arraylist chanList){
     char *messageArgs[MAX_MSG_TOKENS];
     int chanIndex = findChannelIndexByChanname(chanList, channame);
-    char buf[MAX_CONTENT_LENGTH+1];
     channel_t *theChannel;
     /* see if channel exists */
     if ( chanIndex == -1){
@@ -391,29 +403,34 @@ void part_client(client_t *client,char *servername, char *channame, Arraylist ch
         messageArgs[0] = channame;
         messageArgs[1] = "No such channel";
 
-        sendNumericReply(client, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
+        sendNumericReply(sender, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
         return;
     }
     theChannel = CHANNEL_GET(chanList,chanIndex);
 
+    part_client_given_channel(sender, servername, theChannel, chanList);
+}
+void part_client_given_channel(client_t *sender, char *servername, channel_t *theChannel, Arraylist chanList){
+    char *messageArgs[MAX_MSG_TOKENS];
+    char buf[MAX_CONTENT_LENGTH+1];
+    int i;
+
     /* see if user is part of that channel */
-    if ( arraylist_index_of(theChannel->userlist,client) == -1){
+    if ( arraylist_index_of(theChannel->userlist,sender) == -1){
         /*send ERR_NONONCHANNEL*/
-        messageArgs[0] = channame;
+        messageArgs[0] = theChannel->name;
         messageArgs[1] = "You're not on that channel";
 
-        sendNumericReply(client, servername, ERR_NOTONCHANNEL, messageArgs, 2);
+        sendNumericReply(sender, servername, ERR_NOTONCHANNEL, messageArgs, 2);
+    }
+    /* echo QUIT message to users */
+    for (i = 0; i < arraylist_size(theChannel->userlist); i++){
+        sendQUIT(CLIENT_GET(theChannel->userlist,i),sender,"Bye Bye");
     }
 
-    /* echo QUIT message to users */
-    snprintf(buf,sizeof buf,":%s!%s@%s QUIT %s",client->nick,client->user,client->servername,"Bye Bye");
-    buf[sizeof buf - 1] = '\0';
-    sendChannelBroadcast(client, theChannel , TRUE, buf);
-
-
     /* remove user from channel */
-    arraylist_remove(theChannel->userlist,client);
-    arraylist_remove(client->chanlist,theChannel);
+    arraylist_remove(theChannel->userlist,sender);
+    arraylist_remove(sender->chanlist,theChannel);
 
     /* remove channel from chanList if no one in channel */
     if (arraylist_size(theChannel->userlist) == 0){
@@ -427,22 +444,135 @@ void part_client(client_t *client,char *servername, char *channame, Arraylist ch
 
 void cmd_part(CMD_ARGS)
 {
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    char *lastWord;
+    int numTokens;
+    char **tokens = splitByDelimStr(params[0],",",&numTokens,&lastWord);
 
+    int i;
+    for (i=0;i<numTokens;i++){
+        part_client(sender,servername,tokens[i],channelList);
+    }
+    part_client(sender,servername,lastWord,channelList);
 
+    freeTokens(&tokens,numTokens);
 }
 
 
 
 void cmd_list(CMD_ARGS)
 {
-}
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    char buf[32]; /* arbitrary number. I will only hold '# of users' in text */
+    char *messageArgs[MAX_MSG_TOKENS];
+    int i;
 
+    /* RPL_LISTSTART */
+    messageArgs[0] = "Channel";
+    messageArgs[1] = "Users Name";
+    sendNumericReply(sender,servername,RPL_LISTSTART,messageArgs,2);
+
+    /* RPL_LIST */
+    messageArgs[1] = buf; /* second argument will always be present in buf */
+    for (i = 0; i < arraylist_size(channelList); i++){
+        channel_t *thisChannel = CHANNEL_GET(channelList,i);
+        sprintf(buf,"%d",arraylist_size(thisChannel->userlist) );
+
+        messageArgs[0] = thisChannel->name;
+        /* messageArgs[1] = buf; */
+        /*messageArgs[2] = thisChannel->topic;*/ /*not required by this project */
+
+        sendNumericReply(sender,servername,RPL_LIST,messageArgs,2);
+    }
+
+    /* RPL_LISTEND */
+    messageArgs[0] = "End of /LIST";
+    sendNumericReply(sender,servername,RPL_LISTEND,messageArgs,1);
+}
 
 void cmd_privmsg(CMD_ARGS)
 {
+    client_t *sender = CLIENT_GET(clientList, srcIndex);
+    int i,j;
+    char buf[MAX_CONTENT_LENGTH+1];
+    char *messageArgs[MAX_MSG_TOKENS];
+    int numTarget;
+    char *lastTarget;
+    char **targets = splitByDelimStr(params[0],",",&numTarget,&lastTarget);
+    char *message = params[1];
+    /* no params: ERR_NORECEIPIENT */
+    if (n_params == 0){
+        messageArgs[0] = "No Recipient given (PRIVMSG)";
+        sendNumericReply(sender,servername,ERR_NORECIPIENT,messageArgs,1);
+    }
+
+    /* one params: ERR_NOTEXTTOSEND */
+    if (n_params == 1){
+        messageArgs[0] = "No text to send";
+        sendNumericReply(sender,servername,ERR_NOTEXTTOSEND,messageArgs,1);
+    }
+    /* Iterate through targets */
+    for (i = 0; i < numTarget; i++){
+        /* search users */
+        int userIndex = findClientIndexByNick(clientList,targets[i]);
+        if (userIndex >= 0){
+            /* user found */
+            client_t *receiver = CLIENT_GET(clientList,userIndex);
+            sendPRIVMSG(receiver,sender,targets[i],message);
+            continue;
+        }
+        /* search channel */
+        int channelIndex = findChannelIndexByChanname(channelList, targets[i]);
+        if (channelIndex >= 0){
+            channel_t *theChannel = CHANNEL_GET(channelList,channelIndex);
+            for (j=0; j < arraylist_size(theChannel->userlist); j++){
+                client_t *receiver = CLIENT_GET(theChannel->userlist, j);
+                sendPRIVMSG(receiver,sender,targets[i],message);
+            }
+            continue;
+        }
+        /* if not found send ERR_NOSUCHNICK */
+        messageArgs[0] = targets[i];
+        messageArgs[1] = "No such nick/channel";
+        sendNumericReply(sender,servername,ERR_NOSUCHNICK, messageArgs, 2);
+
+    }
+
+    /* handle last token */
+    /* search users */
+    int userIndex = findClientIndexByNick(clientList,lastTarget);
+    if (userIndex >= 0){
+        /* user found */
+        client_t *receiver = CLIENT_GET(clientList,userIndex);
+        sendPRIVMSG(receiver,sender,lastTarget,message);
+        return;
+    }
+    /* search channel */
+    int channelIndex = findChannelIndexByChanname(channelList, lastTarget);
+    if (channelIndex >= 0){
+        channel_t *theChannel = CHANNEL_GET(channelList,channelIndex);
+        for (j=0; j < arraylist_size(theChannel->userlist); j++){
+            client_t *receiver = CLIENT_GET(theChannel->userlist, j);
+            sendPRIVMSG(receiver,sender,lastTarget,message);
+        }
+    }
+    /* if not found send ERR_NOSUCHNICK */
+    messageArgs[0] = lastTarget;
+    messageArgs[1] = "No such nick/channel";
+    sendNumericReply(sender,servername,ERR_NOSUCHNICK, messageArgs, 2);
+
+    freeTokens(&targets, numTarget);
 }
 void cmd_who(CMD_ARGS)
 {
+    int i, j;
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    /* if no args given */
+
+    for (i = 0; i < arraylist_size(clientList); i++){
+
+        if (!arraylist_has_intersection(client))
+    }
 
 }
 /* And so on */

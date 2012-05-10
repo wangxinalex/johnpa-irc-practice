@@ -135,3 +135,28 @@ int sendChannelBroadcast(client_t *sender, channel_t *channel, Boolean senderrec
   }
   return 0;
 }
+
+void sendNICK(client_t *receiver, client_t *sender, char *oldNick, char *newNick){
+    char buf[MAX_CONTENT_LENGTH+1];
+
+    snprintf(buf,MAX_CONTENT_LENGTH,":%s!%s@%s NICK %s",oldNick,sender->user,sender->hostname,newNick);
+    buf[MAX_CONTENT_LENGTH] = '\0';
+    prepareMessage(receiver,buf);
+}
+void sendQUIT(client_t *receiver, client_t *sender, char *message){
+    char buf[MAX_CONTENT_LENGTH+1];
+
+    snprintf(buf,MAX_CONTENT_LENGTH,":%s!%s@%s QUIT :%s",sender->nick,sender->user,sender->hostname,message);
+    buf[MAX_CONTENT_LENGTH] = '\0';
+    prepareMessage(receiver,buf);
+}
+void sendPRIVMSG(client_t *receiver, client_t *sender, char *target, char *message){
+    char buf[MAX_CONTENT_LENGTH+1];
+
+    snprintf(buf,MAX_CONTENT_LENGTH,":%s PRIVMSG %s :%s",sender->nick, target, message);
+    buf[MAX_CONTENT_LENGTH] = '\0';
+    prepareMessage(receiver,buf);
+}
+void sendWHOREPLY(client_t *receiver, )
+
+

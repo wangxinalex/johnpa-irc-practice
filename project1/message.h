@@ -27,6 +27,13 @@ Boolean isValidChanname(char *channame);
 int sendChannelBroadcast(client_t *sender, channel_t *channame, Boolean senderreceive, char *message);
 
 
+void sendNICK(client_t *receiver, client_t *sender, char *oldNick, char *newNick);
+void sendQUIT(client_t *receiver, client_t *sender, char *message);
+void sendPRIVMSG(client_t *receiver, client_t *sender, char *target, char *message);
+
+
+
+
 int sendMessage(Arraylist clientList, client_t *sender, char *destination, char *message);
 int sendUser(Arraylist clientList, client_t *sender, char *channame, char *message);
 

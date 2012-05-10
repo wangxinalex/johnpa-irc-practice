@@ -26,7 +26,10 @@ static inline int max(int a, int b){
 #define MAX_HOSTNAME 512
 #define MAX_SERVERNAME 512
 #define MAX_REALNAME 512
-#define MAX_CHANNAME 512
+#define MAX_CHANNAME 9
+#define MAX_NICKNAME 9
+
+
 
 #define CLIENT_GET(LIST,INDEX) ((client_t *)arraylist_get((LIST),(INDEX)))
 #define CHANNEL_GET(LIST,INDEX) ((channel_t *)arraylist_get((LIST),(INDEX)))
