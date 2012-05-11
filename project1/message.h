@@ -30,7 +30,7 @@ int sendChannelBroadcast(client_t *sender, channel_t *channame, Boolean senderre
 void sendNICK(client_t *receiver, client_t *sender, char *oldNick, char *newNick);
 void sendQUIT(client_t *receiver, client_t *sender, char *message);
 void sendPRIVMSG(client_t *receiver, client_t *sender, char *target, char *message);
-
+void sendWHOREPLY(client_t *receiver, client_t *otherClient, char *channel, char *servername);
 
 
 

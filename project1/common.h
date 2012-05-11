@@ -84,6 +84,7 @@ typedef struct {
     char nick[MAX_USERNAME+1];
     char realname[MAX_REALNAME+1];
     char inbuf[MAX_MSG_LEN+1];
+    int hopcount; /*for project 2 */
     Arraylist chanlist;
 } client_t;
 
@@ -122,9 +123,9 @@ void freeTokens(char ***ptrToTokenArr, int numTokens);
 int findClientIndexBySockFD(Arraylist list, int sockfd);
 int findClientIndexByNick(Arraylist clientList, char *nickname);
 int findChannelIndexByChanname(Arraylist chanList, char *channame);
-int addClientToList(Arraylist list, char *servername, int sockfd, void *remoteaddr);
+int addClientToList(Arraylist list, char *servername, int sockfd, struct sockaddr_storage *remoteaddr);
 
-client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr);
+client_t *client_alloc_init(char *servername, int sockfd, struct sockaddr_storage *remoteaddr);
 channel_t *channel_alloc_init(char *channame);
 
 

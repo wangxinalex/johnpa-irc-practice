@@ -157,6 +157,28 @@ void sendPRIVMSG(client_t *receiver, client_t *sender, char *target, char *messa
     buf[MAX_CONTENT_LENGTH] = '\0';
     prepareMessage(receiver,buf);
 }
-void sendWHOREPLY(client_t *receiver, )
+void sendWHOREPLY(client_t *receiver, client_t *otherClient, char *channel, char *servername){
+    char *messageArgs[MAX_MSG_TOKENS];
+    char buf[MAX_CONTENT_LENGTH+1];
+    if (!channel){
+        messageArgs[0] = (arraylist_size(otherClient->chanlist) == 0)
+                            ? "*" 
+                            : CHANNEL_GET(otherClient->chanlist,0)->name;
+    }
+    else{
+        messageArgs[0] = channel;
+    }
+    messageArgs[1] = otherClient->user;
+    messageArgs[2] = otherClient->hostname;
+    messageArgs[3] = otherClient->servername;
+    messageArgs[4] = otherClient->nick;
+    messageArgs[5] = "H";
+    
+    snprintf(buf,MAX_CONTENT_LENGTH,"%d %s",otherClient->hopcount,otherClient->realname);
+    buf[MAX_CONTENT_LENGTH] = '\0';
+    messageArgs[6] = buf;
+    
+    sendNumericReply(receiver,servername, RPL_WHOREPLY, messageArgs,7);
+}
 
 

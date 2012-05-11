@@ -28,10 +28,10 @@ typedef void (*cmd_handler_t)(CMD_ARGS);
 
 
 struct dispatch {
-  char cmd[MAX_COMMAND];
-  int needreg; /* Must the user be registered to issue this cmd? */
-  int minparams; /* send NEEDMOREPARAMS if < this many params */
-  cmd_handler_t handler;
+    char cmd[MAX_COMMAND];
+    int needreg; /* Must the user be registered to issue this cmd? */
+    int minparams; /* send NEEDMOREPARAMS if < this many params */
+    cmd_handler_t handler;
 };
 
 
@@ -61,16 +61,16 @@ void part_client_given_channel(client_t * client, char *servername, channel_t *t
 * the command requires.  It may take more optional parameters.
 */
 struct dispatch cmds[] = {
-  /* cmd,    reg  #parm  function */
-  { "NICK",    0, 0, cmd_nick },
-  { "USER",    0, 4, cmd_user },
-  { "QUIT",    1, 0, cmd_quit },
-  { "JOIN",    1, 1, cmd_join },
-  { "PART",    1, 1, cmd_part },
-  { "LIST",    1, 0, cmd_list },
-  { "PRIVMSG", 1, 0, cmd_privmsg },
-  { "WHO",     1, 0, cmd_who },
-  /* Fill in the blanks... */
+    /* cmd,    reg  #parm  function */
+    { "NICK",    0, 0, cmd_nick },
+    { "USER",    0, 4, cmd_user },
+    { "QUIT",    1, 0, cmd_quit },
+    { "JOIN",    1, 1, cmd_join },
+    { "PART",    1, 1, cmd_part },
+    { "LIST",    1, 0, cmd_list },
+    { "PRIVMSG", 1, 0, cmd_privmsg },
+    { "WHO",     1, 0, cmd_who },
+    /* Fill in the blanks... */
 };
 
 /* Handle a command line.  NOTE:  You will probably want to
@@ -86,115 +86,115 @@ struct dispatch cmds[] = {
 * Strip the trailing newline off before calling this function.
 */
 void handle_line_temp(Arraylist clientList, int srcIndex, char *servername, char *line){
-  int lineLen = strlen(line);
-  char *copy = malloc( sizeof(char) * (lineLen + 2 + 1));
+    int lineLen = strlen(line);
+    char *copy = malloc( sizeof(char) * (lineLen + 2 + 1));
 
-  memcpy(copy,line,lineLen);
-  strcpy(copy+lineLen,"\r\n");
+    memcpy(copy,line,lineLen);
+    strcpy(copy+lineLen,"\r\n");
 
-  client_t *sender = arraylist_get(clientList, srcIndex);
-  arraylist_add(sender->outbuf,copy);
+    client_t *sender = arraylist_get(clientList, srcIndex);
+    arraylist_add(sender->outbuf,copy);
 }
 void handle_line(Arraylist clientList, int srcIndex, Arraylist channelList, char *servername, char *line)
 {
-  char *prefix = NULL, *command, *pstart, *params[MAX_MSG_TOKENS];
-  int n_params = 0;
-  char *trailing = NULL;
+    char *prefix = NULL, *command, *pstart, *params[MAX_MSG_TOKENS];
+    int n_params = 0;
+    char *trailing = NULL;
 
-  client_t *sender = arraylist_get(clientList,srcIndex);
+    client_t *sender = arraylist_get(clientList,srcIndex);
 
-  DPRINTF(DEBUG_INPUT, "Handling line: %s\n", line);
-  command = line;
-  if (*line == ':') {
-    prefix = ++line;
-    command = strchr(prefix, ' ');
-  }
-  if (!command || *command == '\0') {
-    /* Send an unknown command error! */
-    //some_of_your_code_better_go_here();
-    params[0] = "No Command Specified";
-    sendNumericReply(sender, servername, ERR_UNKNOWNCOMMAND, params, 1);
-    return;
-  }
-
-  while (*command == ' ') {
-    *command++ = 0;
-  }
-  if (*command == '\0') {
-    //and_more_of_your_code_should_go_here();
-    /* Send an unknown command error! */
-    params[0] = "No Command Specified";
-    sendNumericReply(sender, servername, ERR_UNKNOWNCOMMAND, params, 1);
-    return;
-  }
-  pstart = strchr(command, ' ');
-  if (pstart) {
-    while (*pstart == ' ') {
-      *pstart++ = '\0';
+    DPRINTF(DEBUG_INPUT, "Handling line: %s\n", line);
+    command = line;
+    if (*line == ':') {
+        prefix = ++line;
+        command = strchr(prefix, ' ');
     }
-    if (*pstart == ':') {
-      trailing = pstart;
-    } else {
-      trailing = strstr(pstart, " :");
-    }
-    if (trailing) {
-      while (*trailing == ' ')
-      *trailing++ = 0;
-      if (*trailing == ':')
-      *trailing++ = 0;
+    if (!command || *command == '\0') {
+        /* Send an unknown command error! */
+        //some_of_your_code_better_go_here();
+        params[0] = "No Command Specified";
+        sendNumericReply(sender, servername, ERR_UNKNOWNCOMMAND, params, 1);
+        return;
     }
 
-    do {
-      if (*pstart != '\0') {
-        params[n_params++] = pstart;
-      } else {
-        break;
-      }
-      pstart = strchr(pstart, ' ');
-      if (pstart) {
+    while (*command == ' ') {
+        *command++ = 0;
+    }
+    if (*command == '\0') {
+        //and_more_of_your_code_should_go_here();
+        /* Send an unknown command error! */
+        params[0] = "No Command Specified";
+        sendNumericReply(sender, servername, ERR_UNKNOWNCOMMAND, params, 1);
+        return;
+    }
+    pstart = strchr(command, ' ');
+    if (pstart) {
         while (*pstart == ' ') {
-          *pstart++ = '\0';
+            *pstart++ = '\0';
         }
-      }
-    } while (pstart != NULL && n_params < MAX_MSG_TOKENS);
-  }
+        if (*pstart == ':') {
+            trailing = pstart;
+        } else {
+            trailing = strstr(pstart, " :");
+        }
+        if (trailing) {
+            while (*trailing == ' ')
+            *trailing++ = 0;
+            if (*trailing == ':')
+            *trailing++ = 0;
+        }
 
-  if (trailing && n_params < MAX_MSG_TOKENS) {
-    params[n_params++] = trailing;
-  }
-
-  DPRINTF(DEBUG_INPUT, "Prefix:  %s\nCommand: %s\nParams (%d):\n",
-  prefix ? prefix : "<none>", command, n_params);
-  int i;
-  for (i = 0; i < n_params; i++) {
-    DPRINTF(DEBUG_INPUT, "   %s\n", params[i]);
-  }
-  DPRINTF(DEBUG_INPUT, "\n");
-
-  for (i = 0; i < NELMS(cmds); i++) {
-    if (!strcasecmp(cmds[i].cmd, command)) {
-      if (cmds[i].needreg && !(sender->registered) ) {
-        params[0] = "You have not registered";
-        sendNumericReply(sender, servername, ERR_NOTREGISTERED, params, 1);
-        return;
-      } else if (n_params < cmds[i].minparams) {
-        params[0] = command;
-        params[1] = "Not enough parameters";
-        sendNumericReply(sender, servername, ERR_NEEDMOREPARAMS, params, 2);
-        return;
-      } else {
-        (*cmds[i].handler)(clientList, srcIndex, channelList, servername, prefix, params, n_params);
-      }
-      break;
+        do {
+            if (*pstart != '\0') {
+                params[n_params++] = pstart;
+            } else {
+                break;
+            }
+            pstart = strchr(pstart, ' ');
+            if (pstart) {
+                while (*pstart == ' ') {
+                    *pstart++ = '\0';
+                }
+            }
+        } while (pstart != NULL && n_params < MAX_MSG_TOKENS);
     }
-  }
-  if (i == NELMS(cmds)) {
-    /* ERROR - unknown command! */
-    //yet_again_you_should_put_code_here();
-    params[0] = command;
-    params[1] = "Unknown Command";
-    sendNumericReply(sender, servername, ERR_UNKNOWNCOMMAND, params, 2);
-  }
+
+    if (trailing && n_params < MAX_MSG_TOKENS) {
+        params[n_params++] = trailing;
+    }
+
+    DPRINTF(DEBUG_INPUT, "Prefix:  %s\nCommand: %s\nParams (%d):\n",
+    prefix ? prefix : "<none>", command, n_params);
+    int i;
+    for (i = 0; i < n_params; i++) {
+        DPRINTF(DEBUG_INPUT, "   %s\n", params[i]);
+    }
+    DPRINTF(DEBUG_INPUT, "\n");
+
+    for (i = 0; i < NELMS(cmds); i++) {
+        if (!strcasecmp(cmds[i].cmd, command)) {
+            if (cmds[i].needreg && !(sender->registered) ) {
+                params[0] = "You have not registered";
+                sendNumericReply(sender, servername, ERR_NOTREGISTERED, params, 1);
+                return;
+            } else if (n_params < cmds[i].minparams) {
+                params[0] = command;
+                params[1] = "Not enough parameters";
+                sendNumericReply(sender, servername, ERR_NEEDMOREPARAMS, params, 2);
+                return;
+            } else {
+                (*cmds[i].handler)(clientList, srcIndex, channelList, servername, prefix, params, n_params);
+            }
+            break;
+        }
+    }
+    if (i == NELMS(cmds)) {
+        /* ERROR - unknown command! */
+        //yet_again_you_should_put_code_here();
+        params[0] = command;
+        params[1] = "Unknown Command";
+        sendNumericReply(sender, servername, ERR_UNKNOWNCOMMAND, params, 2);
+    }
 }
 
 
@@ -203,83 +203,83 @@ void handle_line(Arraylist clientList, int srcIndex, Arraylist channelList, char
 /* MODIFY to take the arguments you specified above! */
 void cmd_nick(CMD_ARGS)
 {
-  int i,j;
-  client_t *sender = CLIENT_GET(clientList,srcIndex);
-  char *messageArgs[MAX_MSG_TOKENS];
-  char *newNick = params[0]; /* an alias for code readability */
+    int i,j;
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    char *messageArgs[MAX_MSG_TOKENS];
+    char *newNick = params[0]; /* an alias for code readability */
 
 
-  /* ERR_NONICKNAMEGIVEN */
-  if (n_params == 0){
-    messageArgs[0] = "No nickname given";
-    sendNumericReply(sender, servername, ERR_NONICKNAMEGIVEN, messageArgs, 1);
-    return;
-  }
-
-  /* check validity of specified nick */
-  if (!isValidNick(newNick)){
-    messageArgs[0] = newNick;
-    messageArgs[1] = "Erroneus nickname";
-    sendNumericReply(sender, servername, ERR_ERRONEOUSNICKNAME, messageArgs, 2);
-    return;
-  }
-
-  /* look for duplicate nick names */
-  int numClient = arraylist_size(clientList);
-  for (i=0;i<numClient;i++){
-    client_t *other = CLIENT_GET(clientList,i);
-    if (strcasecmp(newNick,other->nick)){
-      messageArgs[0] = newNick;
-      messageArgs[1] = "Nickname is already in use";
-      sendNumericReply(sender, servername, ERR_NICKNAMEINUSE, messageArgs, 2);
-      return;
+    /* ERR_NONICKNAMEGIVEN */
+    if (n_params == 0){
+        messageArgs[0] = "No nickname given";
+        sendNumericReply(sender, servername, ERR_NONICKNAMEGIVEN, messageArgs, 1);
+        return;
     }
-  }
+
+    /* check validity of specified nick */
+    if (!isValidNick(newNick)){
+        messageArgs[0] = newNick;
+        messageArgs[1] = "Erroneus nickname";
+        sendNumericReply(sender, servername, ERR_ERRONEOUSNICKNAME, messageArgs, 2);
+        return;
+    }
+
+    /* look for duplicate nick names */
+    int numClient = arraylist_size(clientList);
+    for (i=0;i<numClient;i++){
+        client_t *other = CLIENT_GET(clientList,i);
+        if (strcasecmp(newNick,other->nick)){
+            messageArgs[0] = newNick;
+            messageArgs[1] = "Nickname is already in use";
+            sendNumericReply(sender, servername, ERR_NICKNAMEINUSE, messageArgs, 2);
+            return;
+        }
+    }
 
 
-  /* registered and in a channel. i.e. Nick change situation*/
-  if (sender->registered && (arraylist_size(sender->chanlist) != 0)){
+    /* registered and in a channel. i.e. Nick change situation*/
+    if (sender->registered && (arraylist_size(sender->chanlist) != 0)){
 
-    for (i=0;i<arraylist_size(sender->chanlist);i++){
-        channel_t *thisChannel = CHANNEL_GET(sender->chanlist,i);
-        for (j = 0; j < arraylist_size(thisChannel->userlist); j++){
-            client_t *receiver = CLIENT_GET(thisChannel->userlist,j);
-            if (receiver != sender){
-                 sendNICK(receiver, sender, sender->nick, newNick);
+        for (i=0;i<arraylist_size(sender->chanlist);i++){
+            channel_t *thisChannel = CHANNEL_GET(sender->chanlist,i);
+            for (j = 0; j < arraylist_size(thisChannel->userlist); j++){
+                client_t *receiver = CLIENT_GET(thisChannel->userlist,j);
+                if (receiver != sender){
+                    sendNICK(receiver, sender, sender->nick, newNick);
+                }
             }
         }
     }
-  }
 
-  /* add nick */
-  strcpy(sender->nick,newNick);
+    /* add nick */
+    strcpy(sender->nick,newNick);
 
-  /* now registered case */
-  if ((sender->registered == FALSE) && (strlen(sender->user) != 0)){
-    sender->registered = TRUE;
-    sendMOTD(sender,servername);
-  }
+    /* now registered case */
+    if ((sender->registered == FALSE) && (strlen(sender->user) != 0)){
+        sender->registered = TRUE;
+        sendMOTD(sender,servername);
+    }
 }
 
 void cmd_user(CMD_ARGS)
 {
-  char *messageArgs[MAX_MSG_TOKENS];
-  /* Arraylist clientList, int srcIndex, char *servername, char *prefix, char **params, int n_params */
-  client_t *sender = CLIENT_GET(clientList,srcIndex);
-  if (sender->user[0] != '\0'){
-    messageArgs[0] = "You may not register";
-    sendNumericReply(sender, servername, ERR_ALREADYREGISTRED, messageArgs, 1);
-    return;
-  }
+    char *messageArgs[MAX_MSG_TOKENS];
+    /* Arraylist clientList, int srcIndex, char *servername, char *prefix, char **params, int n_params */
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    if (sender->user[0] != '\0'){
+        messageArgs[0] = "You may not register";
+        sendNumericReply(sender, servername, ERR_ALREADYREGISTRED, messageArgs, 1);
+        return;
+    }
 
-  strncpy(sender->user, params[0], MAX_USERNAME - 1);
-  sender->user[MAX_USERNAME-1] = '\0';
-  strncpy(sender->realname, params[3], MAX_REALNAME - 1);
+    strncpy(sender->user, params[0], MAX_USERNAME - 1);
+    sender->user[MAX_USERNAME-1] = '\0';
+    strncpy(sender->realname, params[3], MAX_REALNAME - 1);
 
-  if (!sender->registered && sender->nick[0] != '\0'){
-    sender->registered = TRUE;
-    sendMOTD(sender,servername);
-  }
+    if (!sender->registered && sender->nick[0] != '\0'){
+        sender->registered = TRUE;
+        sendMOTD(sender,servername);
+    }
 }
 
 
@@ -287,38 +287,38 @@ void cmd_user(CMD_ARGS)
 
 void cmd_quit(CMD_ARGS)
 {
-  int i,j;
-  client_t *sender = CLIENT_GET(clientList,srcIndex);
-  char *message = ( n_params > 0) ? params[0] : "Bye Bye";
+    int i,j;
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    char *message = ( n_params > 0) ? params[0] : "Bye Bye";
 
-  DPRINTF(DEBUG_CLIENTS,"client %d entered cmd_quit\n",sender->sock);
+    DPRINTF(DEBUG_CLIENTS,"client %d entered cmd_quit\n",sender->sock);
 
-  if (sender->registered && arraylist_size(sender->chanlist) != 0){
-    for (i=0;i<arraylist_size(sender->chanlist);i++){
-        channel_t *thisChannel = CHANNEL_GET(sender->chanlist,i);
-        for (j=0; j<arraylist_size(thisChannel->userlist); j++){
-            client_t *receiver = CLIENT_GET(thisChannel->userlist,j);
-            if (receiver != sender){
-                sendQUIT(receiver,sender,message);
+    if (sender->registered && arraylist_size(sender->chanlist) != 0){
+        for (i=0;i<arraylist_size(sender->chanlist);i++){
+            channel_t *thisChannel = CHANNEL_GET(sender->chanlist,i);
+            for (j=0; j<arraylist_size(thisChannel->userlist); j++){
+                client_t *receiver = CLIENT_GET(thisChannel->userlist,j);
+                if (receiver != sender){
+                    sendQUIT(receiver,sender,message);
+                }
             }
         }
     }
-  }
-  remove_client(clientList,srcIndex);
+    remove_client(clientList,srcIndex);
 }
 
 void cmd_join(CMD_ARGS)
 {
-  int i=0;
-  client_t *sender = CLIENT_GET(clientList,srcIndex);
-  int numTokens;
-  char *lastStr;
-  char **tokens = splitByDelimStr(params[0],",",&numTokens,&lastStr);
-  char *messageArgs[MAX_MSG_TOKENS];
-  char buf[MAX_CONTENT_LENGTH+1];
+    int i=0;
+    client_t *sender = CLIENT_GET(clientList,srcIndex);
+    int numTokens;
+    char *lastStr;
+    char **tokens = splitByDelimStr(params[0],",",&numTokens,&lastStr);
+    char *messageArgs[MAX_MSG_TOKENS];
+    char buf[MAX_CONTENT_LENGTH+1];
 
-  /* only one channel allowed for now */
-  /*for (i = 0; i < numTokens; i++){*/
+    /* only one channel allowed for now */
+    /*for (i = 0; i < numTokens; i++){*/
     int chanIndex = findChannelIndexByChanname(channelList,tokens[i]);
 
     /* check if the user is already in that channel */
@@ -329,26 +329,26 @@ void cmd_join(CMD_ARGS)
     }
 
     if (chanIndex == -1){
-      /* no existing channel with that name */
-      /* verify validity of channame */
-      if (!isValidChanname(tokens[i])){
-        messageArgs[0] = tokens[i];
-        messageArgs[1] = "No such channel";
-        sendNumericReply(sender, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
-        return;
-      }
-      /* create channel */
-      channel_t *newChannel = channel_alloc_init(tokens[i]);
-      if (newChannel){
-        chanIndex = arraylist_add(channelList,newChannel);
-      }
+        /* no existing channel with that name */
+        /* verify validity of channame */
+        if (!isValidChanname(tokens[i])){
+            messageArgs[0] = tokens[i];
+            messageArgs[1] = "No such channel";
+            sendNumericReply(sender, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
+            return;
+        }
+        /* create channel */
+        channel_t *newChannel = channel_alloc_init(tokens[i]);
+        if (newChannel){
+            chanIndex = arraylist_add(channelList,newChannel);
+        }
 
-      if (!newChannel || chanIndex < 0){
-        messageArgs[0] = tokens[i];
-        messageArgs[1] = "Cannot join channel (+l)";
-        sendNumericReply(sender, servername, ERR_TOOMANYCHANNELS, messageArgs, 2);
-        return;
-      }
+        if (!newChannel || chanIndex < 0){
+            messageArgs[0] = tokens[i];
+            messageArgs[1] = "Cannot join channel (+l)";
+            sendNumericReply(sender, servername, ERR_TOOMANYCHANNELS, messageArgs, 2);
+            return;
+        }
 
     }
 
@@ -386,10 +386,10 @@ void cmd_join(CMD_ARGS)
 
 
 
- /* }*/
+    /* }*/
 
 
-  freeTokens(&tokens,numTokens);
+    freeTokens(&tokens,numTokens);
 
 }
 
@@ -412,7 +412,6 @@ void part_client(client_t *sender,char *servername, char *channame, Arraylist ch
 }
 void part_client_given_channel(client_t *sender, char *servername, channel_t *theChannel, Arraylist chanList){
     char *messageArgs[MAX_MSG_TOKENS];
-    char buf[MAX_CONTENT_LENGTH+1];
     int i;
 
     /* see if user is part of that channel */
@@ -494,7 +493,6 @@ void cmd_privmsg(CMD_ARGS)
 {
     client_t *sender = CLIENT_GET(clientList, srcIndex);
     int i,j;
-    char buf[MAX_CONTENT_LENGTH+1];
     char *messageArgs[MAX_MSG_TOKENS];
     int numTarget;
     char *lastTarget;
@@ -567,13 +565,60 @@ void cmd_who(CMD_ARGS)
 {
     int i, j;
     client_t *sender = CLIENT_GET(clientList,srcIndex);
+    char *messageArgs[MAX_MSG_TOKENS];
+    
+    int channelIndex;
+    channel_t *theChannel;
+    client_t *otherClient;
+    
     /* if no args given */
-
-    for (i = 0; i < arraylist_size(clientList); i++){
-
-        if (!arraylist_has_intersection(client))
+    if (n_params == 0){
+        for (i = 0; i < arraylist_size(clientList); i++){
+            client_t *otherClient = CLIENT_GET(clientList,srcIndex);
+            if (!arraylist_has_intersection(sender->chanlist,otherClient->chanlist)){
+                sendWHOREPLY(sender,otherClient,NULL,servername);
+            }
+        }
+        messageArgs[0] = "*";
+        messageArgs[1] = "End of/WHO list";
+        sendNumericReply(sender,servername,RPL_ENDOFWHO,messageArgs,2);
+        return;
     }
-
+    else{
+        int numName;
+        char *lastName;
+        char **names = splitByDelimStr(params[0],",",&numName, &lastName);
+        for (i = 0; i < numName; i++){
+            channelIndex = findChannelIndexByChanname(channelList,names[i]);
+            if (channelIndex >= 0){
+                theChannel = CHANNEL_GET(channelList,channelIndex);
+                for (j = 0; j < arraylist_size(theChannel->userlist); j++){
+                    otherClient = CLIENT_GET(theChannel->userlist,j);
+                    sendWHOREPLY(sender,otherClient,names[i],servername);
+                }
+            }
+            
+            /* I am not too sure this is correct behavior. 
+             * I will only send RPL_ENDOFWHOREPLY when no channel found*/
+            messageArgs[0] = names[i];
+            messageArgs[1] = "End of/WHO list";
+            sendNumericReply(sender,servername,RPL_ENDOFWHO,messageArgs,2);
+        }
+        channelIndex = findChannelIndexByChanname(channelList,lastName);
+        if (channelIndex >= 0){
+            theChannel = CHANNEL_GET(channelList,channelIndex);
+            for (j = 0; j < arraylist_size(theChannel->userlist); j++){
+                otherClient = CLIENT_GET(theChannel->userlist,j);
+                sendWHOREPLY(sender,otherClient,lastName,servername);
+            }
+        }
+        
+        /* I am not too sure this is correct behavior. 
+         * I will only send RPL_ENDOFWHOREPLY when no channel found*/
+        messageArgs[0] = lastName;
+        messageArgs[1] = "End of/WHO list";
+        sendNumericReply(sender,servername,RPL_ENDOFWHO,messageArgs,2);
+    }
+    
 }
-/* And so on */
 

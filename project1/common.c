@@ -150,7 +150,7 @@ static const Boolean channelComparator(const Object obj1, const Object obj2){
 }
 
 
-int addClientToList(Arraylist list, char *servername, int sockfd, void *remoteaddr){
+int addClientToList(Arraylist list, char *servername, int sockfd, struct sockaddr_storage *remoteaddr){
     client_t *newClient = client_alloc_init(servername,sockfd,remoteaddr);
     if (!newClient)
         return -1;
@@ -176,7 +176,7 @@ void freeOutbuf(client_t *client){
   arraylist_free(outbuf);
 }
 
-client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr){
+client_t *client_alloc_init(char *servername, int sockfd, struct sockaddr_storage *remoteaddr){
   client_t *newClient;
   int index;
   newClient = malloc(sizeof(client_t));
@@ -201,8 +201,15 @@ client_t *client_alloc_init(char *servername, int sockfd, void *remoteaddr){
   newClient->chanlist = arraylist_create();
   if (  (index = getnameinfo((struct sockaddr *)&newClient->cliaddr,sizeof(struct sockaddr_storage),newClient->hostname,MAX_HOSTNAME,NULL,0,0)) < 0){
     DPRINTF(DEBUG_SOCKETS,"getnameinfo: %s and hostname: %s\n",gai_strerror(index),newClient->hostname);
+    /* drop the client?? */
+    /* 
+        arraylist_free(newClient->outbuf);
+        arraylist_free(newClient->chanlist);
+        free(newClient);
+        return NULL;
+    */
   }
-
+  newClient->hopcount = 0;
   return newClient;
 
 }
