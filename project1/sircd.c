@@ -231,7 +231,7 @@ int main( int argc, char *argv[] )
               /* connection lost or closed by the peer */
 
               DPRINTF(DEBUG_SOCKETS,"send: client %d hungup\n",i);
-              handle_line(clientList,listIndex,channelList,servername,"QUIT :Connection closed");
+              remove_client(clientList,listIndex);
               continue;
             }
           }
@@ -287,11 +287,13 @@ int main( int argc, char *argv[] )
           if (nbytes <= 0){
             if (nbytes == 0){
               DPRINTF(DEBUG_SOCKETS,"recv: client %d hungup\n",i);
-              handle_line(clientList,listIndex,channelList,servername,"QUIT :Connection closed");
+              remove_client(clientList, listIndex);
+
             }
             else if (errno == ECONNRESET || errno == EPIPE){
               DPRINTF(DEBUG_SOCKETS,"recv: client %d connection reset \n",i);
-              handle_line(clientList,listIndex,channelList,servername,"QUIT :Connection closed");
+              remove_client(clientList, listIndex);
+
             }
             else{
               perror("recv");
@@ -327,8 +329,11 @@ int main( int argc, char *argv[] )
             handle_line(clientList,listIndex,channelList,servername,tokenArr[j]);
           }
 
-          if (arraylist_size(CLIENT_GET(clientList,listIndex)->outbuf) > 0){
-            FD_SET(i,&write_set); /* one or more data to write */
+          for (j = 0; j < arraylist_size(clientList); j++){
+            client_t *client = CLIENT_GET(clientList,j);
+            if (arraylist_size(client->outbuf)){
+                FD_SET(client->sock,&write_set);
+            }
           }
           freeTokens(&tokenArr,numTokens);
         }

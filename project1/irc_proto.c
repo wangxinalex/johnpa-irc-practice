@@ -228,7 +228,7 @@ void cmd_nick(CMD_ARGS)
     int numClient = arraylist_size(clientList);
     for (i=0;i<numClient;i++){
         client_t *other = CLIENT_GET(clientList,i);
-        if (strcasecmp(newNick,other->nick)){
+        if (strcasecmp(newNick,other->nick) == 0){
             messageArgs[0] = newNick;
             messageArgs[1] = "Nickname is already in use";
             sendNumericReply(sender, servername, ERR_NICKNAMEINUSE, messageArgs, 2);
@@ -311,19 +311,22 @@ void cmd_join(CMD_ARGS)
 {
     int i=0;
     client_t *sender = CLIENT_GET(clientList,srcIndex);
-    int numTokens;
-    char *lastStr;
-    char **tokens = splitByDelimStr(params[0],",",&numTokens,&lastStr);
+    int numChanname;
+    char *lastChanname;
+    char **channames = splitByDelimStr(params[0],",",&numChanname,&lastChanname);
     char *messageArgs[MAX_MSG_TOKENS];
     char buf[MAX_CONTENT_LENGTH+1];
 
     /* only one channel allowed for now */
     /*for (i = 0; i < numTokens; i++){*/
-    int chanIndex = findChannelIndexByChanname(channelList,tokens[i]);
+    char *channame = (numChanname) ? channames[i] : lastChanname;
+    int chanIndex = findChannelIndexByChanname(channelList,channame);
 
     /* check if the user is already in that channel */
     if (arraylist_index_of(sender->chanlist,CHANNEL_GET(channelList,chanIndex)) >= 0){
-        freeTokens(&tokens,numTokens);
+        if (numChanname){
+            freeTokens(&channames,numChanname);
+        }
         return;
         /* continue; // if more than one channel allowed */
     }
@@ -331,20 +334,20 @@ void cmd_join(CMD_ARGS)
     if (chanIndex == -1){
         /* no existing channel with that name */
         /* verify validity of channame */
-        if (!isValidChanname(tokens[i])){
-            messageArgs[0] = tokens[i];
+        if (!isValidChanname(channame)){
+            messageArgs[0] = channame;
             messageArgs[1] = "No such channel";
             sendNumericReply(sender, servername, ERR_NOSUCHCHANNEL, messageArgs, 2);
             return;
         }
         /* create channel */
-        channel_t *newChannel = channel_alloc_init(tokens[i]);
+        channel_t *newChannel = channel_alloc_init(channame);
         if (newChannel){
             chanIndex = arraylist_add(channelList,newChannel);
         }
-
+        /* not able to alloc new Channel or add to the list */
         if (!newChannel || chanIndex < 0){
-            messageArgs[0] = tokens[i];
+            messageArgs[0] = channame;
             messageArgs[1] = "Cannot join channel (+l)";
             sendNumericReply(sender, servername, ERR_TOOMANYCHANNELS, messageArgs, 2);
             return;
@@ -380,7 +383,7 @@ void cmd_join(CMD_ARGS)
     messageArgs[1] = "End of /NAMES list";
     sendNumericReply(sender, servername, RPL_ENDOFNAMES, messageArgs, 2);
 
-    snprintf(buf,sizeof buf, ":%s JOIN %s",sender->nick,tokens[0]);
+    snprintf(buf,sizeof buf, ":%s JOIN %s",sender->nick,channame);
     sendChannelBroadcast(sender,CHANNEL_GET(channelList,chanIndex), TRUE, buf);
 
 
@@ -388,8 +391,9 @@ void cmd_join(CMD_ARGS)
 
     /* }*/
 
-
-    freeTokens(&tokens,numTokens);
+    if (numChanname){
+        freeTokens(&channames, numChanname);
+    }
 
 }
 
@@ -553,6 +557,7 @@ void cmd_privmsg(CMD_ARGS)
             client_t *receiver = CLIENT_GET(theChannel->userlist, j);
             sendPRIVMSG(receiver,sender,lastTarget,message);
         }
+        return;
     }
     /* if not found send ERR_NOSUCHNICK */
     messageArgs[0] = lastTarget;
@@ -566,15 +571,15 @@ void cmd_who(CMD_ARGS)
     int i, j;
     client_t *sender = CLIENT_GET(clientList,srcIndex);
     char *messageArgs[MAX_MSG_TOKENS];
-    
+
     int channelIndex;
     channel_t *theChannel;
     client_t *otherClient;
-    
+
     /* if no args given */
     if (n_params == 0){
         for (i = 0; i < arraylist_size(clientList); i++){
-            client_t *otherClient = CLIENT_GET(clientList,srcIndex);
+            client_t *otherClient = CLIENT_GET(clientList,i);
             if (!arraylist_has_intersection(sender->chanlist,otherClient->chanlist)){
                 sendWHOREPLY(sender,otherClient,NULL,servername);
             }
@@ -597,8 +602,8 @@ void cmd_who(CMD_ARGS)
                     sendWHOREPLY(sender,otherClient,names[i],servername);
                 }
             }
-            
-            /* I am not too sure this is correct behavior. 
+
+            /* I am not too sure this is correct behavior.
              * I will only send RPL_ENDOFWHOREPLY when no channel found*/
             messageArgs[0] = names[i];
             messageArgs[1] = "End of/WHO list";
@@ -612,13 +617,13 @@ void cmd_who(CMD_ARGS)
                 sendWHOREPLY(sender,otherClient,lastName,servername);
             }
         }
-        
-        /* I am not too sure this is correct behavior. 
+
+        /* I am not too sure this is correct behavior.
          * I will only send RPL_ENDOFWHOREPLY when no channel found*/
         messageArgs[0] = lastName;
         messageArgs[1] = "End of/WHO list";
         sendNumericReply(sender,servername,RPL_ENDOFWHO,messageArgs,2);
     }
-    
+
 }
 

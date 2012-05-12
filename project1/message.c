@@ -14,13 +14,14 @@ int prepareMessage(client_t *receiver, char *message){
     return -1;
   }
   /* size to copy */
-  size_t len = max(MAX_MSG_LEN-2,strlen(message));
+  size_t len = min(MAX_MSG_LEN-2,strlen(message));
   memcpy(toSend,message,len);
   /*decorate ending myself. snprintf might just truncate necessary ending*/
   toSend[len] = '\r';
   toSend[len+1] = '\n';
   toSend[len+2] = '\0';
 
+  DPRINTF(DEBUG_COMMANDS, "Ready to send message: %sEOM\n",toSend);
   if (arraylist_add(receiver->outbuf,toSend) < 0){
     DPRINTF(DEBUG_ERRS,"Failed to add a message onto outbuf of client %d\n",receiver->sock);
     return -1;
@@ -71,18 +72,21 @@ int sendNumericReply(client_t *receiver, char *servername, int replyCode, char *
 int sendMOTD(client_t *receiver, char *servername){
   char buf[MAX_MSG_LEN + 1];
 
+  char *messageArgs[1];
+
   snprintf(buf,MAX_MSG_LEN+1,"- %s Message of the day - ",servername);
-  if (sendNumericReply(receiver, servername, RPL_MOTDSTART, (char **)&buf, 1) < 0){
+  messageArgs[0] = buf;
+  if (sendNumericReply(receiver, servername, RPL_MOTDSTART, messageArgs, 1) < 0){
     DPRINTF(DEBUG_ERRS,"cmd_nick: failed to add RPL_MOTDSTART message to client\n");
     return -1;
   }
   snprintf(buf,MAX_MSG_LEN+1,"- %s",servername);
-  if (!sendNumericReply(receiver, servername, RPL_MOTD, (char **)&buf, 1)){
+  if (sendNumericReply(receiver, servername, RPL_MOTD, messageArgs, 1)){
     DPRINTF(DEBUG_ERRS,"cmd_nick: failed to add RPL_MOTD message to client\n");
     return -1;
   }
   snprintf(buf,MAX_MSG_LEN+1,"End of /MOTD command");
-  if (!sendNumericReply(receiver, servername, RPL_ENDOFMOTD, (char **)&buf, 1)){
+  if (sendNumericReply(receiver, servername, RPL_ENDOFMOTD, messageArgs, 1)){
     DPRINTF(DEBUG_ERRS,"cmd_nick: failed to add RPL_ENDOFMOTD message to client\n");
     return -1;
   }
@@ -162,7 +166,7 @@ void sendWHOREPLY(client_t *receiver, client_t *otherClient, char *channel, char
     char buf[MAX_CONTENT_LENGTH+1];
     if (!channel){
         messageArgs[0] = (arraylist_size(otherClient->chanlist) == 0)
-                            ? "*" 
+                            ? "*"
                             : CHANNEL_GET(otherClient->chanlist,0)->name;
     }
     else{
@@ -173,11 +177,11 @@ void sendWHOREPLY(client_t *receiver, client_t *otherClient, char *channel, char
     messageArgs[3] = otherClient->servername;
     messageArgs[4] = otherClient->nick;
     messageArgs[5] = "H";
-    
+
     snprintf(buf,MAX_CONTENT_LENGTH,"%d %s",otherClient->hopcount,otherClient->realname);
     buf[MAX_CONTENT_LENGTH] = '\0';
     messageArgs[6] = buf;
-    
+
     sendNumericReply(receiver,servername, RPL_WHOREPLY, messageArgs,7);
 }
 
