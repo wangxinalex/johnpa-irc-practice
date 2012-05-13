@@ -266,13 +266,13 @@ int main( int argc, char *argv[] )
         }
         else{
           /* client data ready */
-
-          int listIndex = findClientIndexBySockFD(clientList,i);
           char *tempPtr;
+          int listIndex = findClientIndexBySockFD(clientList,i);
 
           /* for split function */
           char** tokenArr;
-          int numTokens;
+          int numToken;
+          int lastTokenTerminated;
 
           if (listIndex < 0){
             close(i);
@@ -313,14 +313,16 @@ int main( int argc, char *argv[] )
             }
             continue;
           }
-          tokenArr = splitByDelimStr(CLIENT_GET(clientList,listIndex)->inbuf,"\r\n",&numTokens,&tempPtr);
+
+          tokenArr = splitByDelimStr(CLIENT_GET(clientList,listIndex)->inbuf,"\r\n",&numToken,&lastTokenTerminated);
           if (!tokenArr){
             DPRINTF(DEBUG_INPUT,"splitByDelimStr: failed to split inputToken\n");
             CLIENT_GET(clientList,listIndex)->inbuf_size = 0;
             continue;
           }
-
-          if (numTokens != 0){
+          if (numToken <= 1 && !lastTokenTerminated)
+              free(tokenArr);
+          if (numToken >= 1 ){
             CLIENT_GET(clientList,listIndex)->inbuf_size = strlen(tempPtr);
             memmove(CLIENT_GET(clientList,listIndex)->inbuf,tempPtr,CLIENT_GET(clientList,listIndex)->inbuf_size);
           }

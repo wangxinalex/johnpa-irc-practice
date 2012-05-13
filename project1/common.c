@@ -24,78 +24,86 @@ void freeTokens(char ***ptrToTokenArr, int numTokens){
  *  delimStr: delimiter for split
  *
  *  Modifies
- *  numTokens: Number of Tokens terminated by delimStr
- *  ptrToTrailing: Points to start of unterminated string in string buf  OR   position of NULL terminator
+ *  numTokenPtr: number of tokens generated.
+ *  lastTokenTerminatedPtr: whether last token was terminated by delimeter or not
  *
  *  Return:
  *    array of deep-copied strings. Array and strings should be freed after use,
  *    although recommended to call freeTokens(&array,numTokens);
- *
+ *    NULL on error. value of *numTokens and *lastTokenTerminated are undefined.
  **/
-char **splitByDelimStr(const char *buf, const char *delimStr, int *numTokens, char **ptrToTrailing){
+char **splitByDelimStr(const char *buf, const char *delimStr, int *numTokenPtr, int *lastTokenTerminatedPtr){
 
   char **retArr;
   int i;
-  char *tempPtr;
+  const char *tmp, *nextToken;
+  size_t tokenSize;
 
-  if (!buf || !delimStr || !numTokens || !ptrToTrailing){
+  int numToken;
+  int lastTokenTerminated = 0;
+
+  if (!buf || !delimStr){
     /* handle error gracefully */
     DPRINTF(DEBUG_ERRS,"splitByCRLF: NULL input detected\n");
-    if (numTokens)
-      *numTokens = 0;
-    if (ptrToTrailing)
-      *ptrToTrailing = NULL;
     return NULL;
   }
 
   /* count tokens */
-  (*numTokens) = 0;
-  tempPtr = strpbrk(buf,delimStr);
-  while ( tempPtr ){
-    (*numTokens)++;
-    /* move tempPtr until no delimiter found */
-    do{
-      tempPtr++;
-    }while (tempPtr == strpbrk(tempPtr, delimStr));
-    tempPtr = strpbrk(tempPtr, delimStr);
-  }
+  numToken = 0; /* number of Tokens = number of delimeters + (last Token was delimeter at end? 0: 1) */
 
-  /* no tokens found */
-  if ( (*numTokens) == 0){
-    *ptrToTrailing = (char *)buf;
+  nextToken = buf;
+  do{
+      if (nextToken[0] == '\0' ){
+        lastTokenTerminated = ( nextToken != 0);
+        break;
+      }
+      numToken++;
+      tmp = strpbrk(nextToken, delimStr);
+      if (!tmp){
+        lastTokenTerminated = 0;
+        break;
+      }
+      nextToken = tmp;
+      while (strchr(delimStr, *(nextToken++)))
+          ;
+  } while (1);
+  if (numToken == 0){
     return NULL;
   }
-
   /* Allocate token array */
-  retArr = malloc( sizeof(char *) *  (*numTokens));
+  retArr = malloc( sizeof(char *) *  (numToken));
 
   if (!retArr){
     DPRINTF(DEBUG_ERRS,"splitByDelimStr: retArr malloc failed\n");
-    *numTokens = 0;
-    *ptrToTrailing = (char *) buf;
     return NULL;
   }
 
-  for (i=0,tempPtr=(char *)buf; i < (*numTokens); i++){
-    char *tokenStart = tempPtr;
-    char *tokenEnd = strpbrk(tempPtr,delimStr);
-    retArr[i] = malloc (sizeof(char) * ((tokenEnd - tokenStart) + 1) );
+  for (i=0,nextToken=buf; i < numToken-1; i++){
+    char *tokenEnd = strpbrk(nextToken,delimStr); /* guarantee to succeed */
+    tokenSize = tokenEnd - nextToken;
+    retArr[i] = malloc (sizeof(char) * (tokenSize + 1) );
     if (!retArr[i]){
-      DPRINTF(DEBUG_ERRS,"splitByDelimStr: retArr[%d] malloc failed\n",i);
-      freeTokens(&retArr,i-1);
-      *numTokens = 0;
-      *ptrToTrailing = (char *)buf;
-      return NULL;
+        DPRINTF(DEBUG_ERRS,"splitByDelimStr: retArr[%d] malloc failed\n",i);
+        freeTokens(&retArr,i);
+        return NULL;
     }
-    memcpy(retArr[i],tokenStart,(tokenEnd-tokenStart));
-    retArr[i][(tokenEnd-tokenStart)] = '\0';
-    tempPtr = tokenEnd + 1;
-    while (tempPtr == strpbrk(tempPtr, delimStr)){
-      tempPtr++;
-    }
+    memcpy(retArr[i],nextToken,tokenSize);
+    retArr[i][tokenSize] = '\0';
+    nextToken = tokenEnd+1;
+    while (strchr(delimStr, *(nextToken++)))
+        ;
   }
-  *ptrToTrailing = tempPtr;
+  /* handle last token */
+  tokenSize =  (lastTokenTerminated) ? strlen(nextToken) : strpbrk(nextToken,delimStr) - nextToken;
 
+  retArr[numToken-1] = malloc(sizeof(char) * tokenSize);
+  memcpy(retArr[numToken-1],nextToken,tokenSize);
+  retArr[numToken-1][tokenSize] = '\0';
+
+  if (numTokenPtr)
+      *numTokenPtr = numToken;
+  if (lastTokenTerminatedPtr)
+      *lastTokenTerminatedPtr = lastTokenTerminated;
   return retArr;
 }
 
@@ -128,27 +136,6 @@ int findChannelIndexByChanname(Arraylist channelList, char *channame){
     return -1;
 
 }
-
-static const Boolean strComparatorForArraylist(const Object obj1, const Object obj2){
-  return (0 == strcmp((char *)obj1, (char *)obj2) ) ? TRUE : FALSE;
-}
-static const Boolean clientComparator(const Object obj1, const Object obj2){
-
-    client_t *client1 = (client_t *)obj1;
-    client_t *client2 = (client_t *)obj2;
-
-    return (client1->sock == client2->sock);
-
-}
-static const Boolean channelComparator(const Object obj1, const Object obj2){
-
-    channel_t *client1 = (channel_t *)obj1;
-    channel_t *client2 = (channel_t *)obj2;
-
-    return (strcmp(client1->name,client2->name) == 0);
-
-}
-
 
 int addClientToList(Arraylist list, char *servername, int sockfd, struct sockaddr_storage *remoteaddr){
     client_t *newClient = client_alloc_init(servername,sockfd,remoteaddr);
@@ -202,7 +189,7 @@ client_t *client_alloc_init(char *servername, int sockfd, struct sockaddr_storag
   if (  (index = getnameinfo((struct sockaddr *)&newClient->cliaddr,sizeof(struct sockaddr_storage),newClient->hostname,MAX_HOSTNAME,NULL,0,0)) < 0){
     DPRINTF(DEBUG_SOCKETS,"getnameinfo: %s and hostname: %s\n",gai_strerror(index),newClient->hostname);
     /* drop the client?? */
-    /* 
+    /*
         arraylist_free(newClient->outbuf);
         arraylist_free(newClient->chanlist);
         free(newClient);

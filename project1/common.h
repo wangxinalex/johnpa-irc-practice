@@ -107,15 +107,15 @@ typedef struct {
  *  delimStr: delimiter for split
  *
  *  Modifies
- *  numTokens: Number of Tokens terminated by delimStr
- *  ptrToTrailing: Points to start of unterminated string in string buf  OR   position of NULL terminator
+ *  numTokenPtr: number of tokens generated.
+ *  lastTokenTerminatedPtr: whether last token was terminated by delimeter or not
  *
  *  Return:
  *    array of deep-copied strings. Array and strings should be freed after use,
  *    although recommended to call freeTokens(&array,numTokens);
- *
+ *    NULL on error. value of *numTokens and *lastTokenTerminated are undefined.
  **/
-char **splitByDelimStr(const char *buf, const char *delimStr, int *numTokens, char **ptrToTrailing);
+char **splitByDelimStr(const char *buf, const char *delimStr, int *numTokenPtr, int *lastTokenTerminatedPtr);
 
 /** Function freeTokens
  *  frees TokenArray returned by splitByDelimStr
