@@ -301,7 +301,7 @@ int main( int argc, char *argv[] )
             continue;
           }
 
-          /* NULL terminate to use strstr */
+          /* NULL terminate to use strpbrk */
           CLIENT_GET(clientList,listIndex)->inbuf_size += nbytes;
           CLIENT_GET(clientList,listIndex)->inbuf[CLIENT_GET(clientList,listIndex)->inbuf_size] = '\0';
           tempPtr = strpbrk(CLIENT_GET(clientList,listIndex)->inbuf,"\r\n");
@@ -315,19 +315,19 @@ int main( int argc, char *argv[] )
           }
 
           tokenArr = splitByDelimStr(CLIENT_GET(clientList,listIndex)->inbuf,"\r\n",&numToken,&lastTokenTerminated);
+          /* since we have checked if there's delimeter beforehand, there should be at least one terminated token available*/
           if (!tokenArr){
             DPRINTF(DEBUG_INPUT,"splitByDelimStr: failed to split inputToken\n");
             CLIENT_GET(clientList,listIndex)->inbuf_size = 0;
             continue;
           }
-          if (numToken <= 1 && !lastTokenTerminated)
-              free(tokenArr);
-          if (numToken >= 1 ){
-            CLIENT_GET(clientList,listIndex)->inbuf_size = strlen(tempPtr);
-            memmove(CLIENT_GET(clientList,listIndex)->inbuf,tempPtr,CLIENT_GET(clientList,listIndex)->inbuf_size);
+          if (!lastTokenTerminated){
+            CLIENT_GET(clientList,listIndex)->inbuf_size = strlen(tokenArr[numToken-1]);
+            memcpy(CLIENT_GET(clientList,listIndex)->inbuf,tokenArr[numToken-1],CLIENT_GET(clientList,listIndex)->inbuf_size);
+            numToken--;
           }
 
-          for (j=0;j<numTokens;j++){
+          for (j=0;j<numToken;j++){
             handle_line(clientList,listIndex,channelList,servername,tokenArr[j]);
           }
 
@@ -337,7 +337,7 @@ int main( int argc, char *argv[] )
                 FD_SET(client->sock,&write_set);
             }
           }
-          freeTokens(&tokenArr,numTokens);
+          freeTokens(&tokenArr,numToken);
         }
       }
     }
